@@ -5,7 +5,7 @@ import torch
 import nltk
 from nltk.tokenize import sent_tokenize
 
-
+from heb_constants import *
 
 # nltk.download('punkt')
 #
@@ -21,6 +21,14 @@ torch.backends.cudnn.benchmark = True
 
 quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
 model = ''#AutoModelForCausalLM.from_pretrained(model_name, cache_dir=cache_dir, quantization_config=quantization_config)
+
+
+models_dict = {
+    models_names[i]: models[i] for i in range(len(models))
+}
+
+model = models_dict[models_names[0]]
+
 
 def generate_response(input_text, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k):
    input_ids = ""#tokenizer(input_text, return_tensors="pt").to(model.device)
@@ -39,7 +47,6 @@ def generate_response(input_text, max_new_tokens, min_length, no_repeat_ngram_si
    # )
    response = "this is a respawns"#tokenizer.decode(outputs[0], skip_special_tokens=True)
    return response
-
 
 
 def create_paragraphs(bot_response, sentences_per_paragraph=4):
