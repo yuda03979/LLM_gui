@@ -21,6 +21,21 @@ def copy_last_response(history):
         return ""
 
 
+def chat(input_text,prompt, history, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k, create_paragraphs_enabled):
+   user_input = f'<div style="text-align: left; direction: ltr;">{input_text}</div>'
+   input_text = f'{PROMPT_DEFAULT+prompt}:
+   {input_text}'
+   response = generate_response(input_text, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k)
+
+   if create_paragraphs_enabled:
+       response = create_paragraphs(response)
+
+   bot_response = f'<div style="text-align: left; direction: ltr;">{response}</div>'
+   history.append((user_input, bot_response))
+
+   return history, history, input_text
+
+
 with gr.Blocks() as demo:
    gr.Markdown("# LLM_gui", elem_id="title")
    gr.Markdown("hi there", elem_id="subtitle")
@@ -50,7 +65,7 @@ with gr.Blocks() as demo:
                top_k = gr.Slider(minimum=1, maximum=100, value=30, step=1, label="Top K")
        early_stopping = gr.Checkbox(value=True, label="Early Stopping")
    
-   submit.click(chat, inputs=[message, chatbot, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k, create_paragraphs_checkbox], outputs=[chatbot, chatbot, message])
+   submit.click(chat, inputs=[message,prompt, chatbot, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k, create_paragraphs_checkbox], outputs=[chatbot, chatbot, message])
    remove_paragraphs_btn.click(remove_paragraphs, inputs=message, outputs=message)
    copy_last_btn.click(copy_last_response, inputs=chatbot, outputs=message)
    
