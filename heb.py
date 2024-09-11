@@ -5,53 +5,7 @@ import torch
 import nltk
 from nltk.tokenize import sent_tokenize
 
-nltk.download('punkt')
-
-model_name = "yam-peleg/Hebrew-Mistral-7B"
-cache_dir = "hebrew_mistral_cache"
-os.makedirs(cache_dir, exist_ok=True)
-
-tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
-
-torch.backends.cudnn.benchmark = True
-
-quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
-model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir=cache_dir, quantization_config=quantization_config)
-
-def generate_response(input_text, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k):
-   input_ids = tokenizer(input_text, return_tensors="pt").to(model.device)
-   outputs = model.generate(
-       **input_ids,
-       max_new_tokens=max_new_tokens,
-       min_length=min_length,
-       no_repeat_ngram_size=no_repeat_ngram_size,
-       num_beams=num_beams,
-       early_stopping=early_stopping,
-       temperature=temperature,
-       top_p=top_p,
-       top_k=top_k,
-       pad_token_id=tokenizer.eos_token_id,
-       do_sample=True
-   )
-   response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-   return response
-
-def create_paragraphs(bot_response, sentences_per_paragraph=4):
-   sentences = sent_tokenize(bot_response)
-   paragraphs = []
-   current_paragraph = ""
-
-   for i, sentence in enumerate(sentences, start=1):
-       current_paragraph += " " + sentence
-       if i % sentences_per_paragraph == 0:
-           paragraphs.append(current_paragraph.strip())
-           current_paragraph = ""
-
-   if current_paragraph:
-       paragraphs.append(current_paragraph.strip())
-
-   formatted_paragraphs = "\n".join([f'<p style="text-align: right; direction: rtl;">{p}</p>' for p in paragraphs])
-   return formatted_paragraphs
+from heb_backend import *
 
 def remove_paragraphs(text):
    return text.replace("\n", " ")
@@ -59,34 +13,24 @@ def remove_paragraphs(text):
 def copy_last_response(history):
     if history:
         last_response = history[-1][1]
-        last_response = last_response.replace('<div style="text-align: right; direction: rtl;">', '').replace('</div>', '')
-        last_response = last_response.replace('<p style="text-align: right; direction: rtl;">', '').replace('</p>', '')
+        last_response = last_response.replace('<div style="text-align: left; direction: ltr;">', '').replace('</div>', '')
+        last_response = last_response.replace('<p style="text-align: left; direction: ltr;">', '').replace('</p>', '')
         last_response = last_response.replace('\n', ' ')
         return last_response
     else:
         return ""
 
-def chat(input_text, history, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k, create_paragraphs_enabled):
-   user_input = f'<div style="text-align: right; direction: rtl;">{input_text}</div>'
-   response = generate_response(input_text, max_new_tokens, min_length, no_repeat_ngram_size, num_beams, early_stopping, temperature, top_p, top_k)
-
-   if create_paragraphs_enabled:
-       response = create_paragraphs(response)
-
-   bot_response = f'<div style="text-align: right; direction: rtl;">{response}</div>'
-   history.append((user_input, bot_response))
-
-   return history, history, input_text
 
 with gr.Blocks() as demo:
-   gr.Markdown("# Hebrew-Mistral-7B Instract-bot", elem_id="title")
-   gr.Markdown("Model by Yam Peleg | GUI by Shmuel Ronen", elem_id="subtitle")
-   
+   gr.Markdown("# LLM_gui", elem_id="title")
+   gr.Markdown("hi there", elem_id="subtitle")
+
    chatbot = gr.Chatbot(elem_id="chatbot")
    
    with gr.Row():
-       message = gr.Textbox(placeholder="Type your message...", label="User", elem_id="message")
-       submit = gr.Button("Send")
+       message = gr.Textbox(placeholder="Type your message...", label="User messege", elem_id="message", scale=4)
+       prompt = gr.Textbox(placeholder="Type your prompt...", label="prompt", elem_id="prompt", scale=4)
+       submit = gr.Button("Send", scale=1)
 
    with gr.Row():
        create_paragraphs_checkbox = gr.Checkbox(label="Create Paragraphs", value=False)
@@ -112,17 +56,17 @@ with gr.Blocks() as demo:
    
    demo.css = """
        #message, #message * {
-           text-align: right !important;
-           direction: rtl !important;
+           text-align: left !important;
+           direction: ltr !important;
        }
        
        #chatbot, #chatbot * {
-           text-align: right !important;
-           direction: rtl !important;
+           text-align: left !important;
+           direction: ltr !important;
        }
        
        #title, .label {
-           text-align: right !important;
+           text-align: left !important;
        }
        
        #subtitle {
