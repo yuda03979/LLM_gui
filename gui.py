@@ -13,6 +13,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import nltk
 from nltk.tokenize import sent_tokenize
+import gc
 
 nltk.download('punkt', quiet=True)
 
@@ -30,21 +31,36 @@ cache_dir = "_cache"
 models = {
     # "dicta-il/dictalm2.0-instruct": "dicta-il/dictalm2.0-instruct",
     # "distilgpt2": "distilgpt2",
-    # "gpt2": "gpt2",
+    "gpt2": "gpt2",
     "meta-llama/Llama-2-7b-hf": "meta-llama/Llama-2-7b-hf",
     # "sshleifer/tiny-gpt2": "sshleifer/tiny-gpt2"
 }
 
-loaded_models = {name:
-                     {"model": AutoModelForCausalLM.from_pretrained(models[name], torch_dtype=torch.bfloat16, cache_dir=cache_dir).to(device),
-                      "tokenizer": AutoTokenizer.from_pretrained(models[name], padding=True, cache_dir=cache_dir)}
-                 for name in models}
+deafult_model_name = "meta-llama/Llama-2-7b-hf"
+
+loaded_models = {deafult_model_name:
+                             {"model": AutoModelForCausalLM.from_pretrained(models[deafult_model_name], torch_dtype=torch.bfloat16,
+                                                                            cache_dir=cache_dir).to(device),
+                              "tokenizer": AutoTokenizer.from_pretrained(models[deafult_model_name], padding=True,
+                                                                         cache_dir=cache_dir)}}
 
 
 def generate_response(input_text, model_name, max_new_tokens=50, temperature=0.7, top_p=0.9, top_k=50):
+    global loaded_models
+    try:
+        loaded_models[model_name]
+    except:
+        loaded_models = {model_name:
+                             {"model": AutoModelForCausalLM.from_pretrained(models[model_name], torch_dtype=torch.bfloat16, cache_dir=cache_dir).to(device),
+                              "tokenizer": AutoTokenizer.from_pretrained(models[model_name], padding=True, cache_dir=cache_dir)}}
+
     model_data = loaded_models[model_name]
     model = model_data["model"]
+    print(model)
     tokenizer = model_data["tokenizer"]
+
+    gc.collect()
+
 
     inputs = tokenizer.encode(input_text, return_tensors="pt").to(device)
 
@@ -59,7 +75,7 @@ def generate_response(input_text, model_name, max_new_tokens=50, temperature=0.7
             pad_token_id=tokenizer.eos_token_id
         )
 
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
     return response[len(input_text):].strip()
 
 def create_paragraphs(bot_response, sentences_per_paragraph=2):
