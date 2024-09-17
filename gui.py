@@ -20,28 +20,28 @@ def create_paragraphs(bot_response, sentences_per_paragraph=2):
     return formatted_paragraphs
 
 
-def chat(input_text, prompt, history, model_name, max_new_tokens, temperature, top_p, create_paragraphs_enabled):
+def chat(input_text, template, history, model_name, max_new_tokens, temperature, top_p, create_paragraphs_enabled):
     # Formatting user input as a right-aligned, RTL HTML div
     user_input = f'<div style="text-align: right; direction: rtl;">{input_text}</div>'
 
     # Constructing the conversation history for LangChain model
     messages = [
-        SystemMessage(content=prompt),  # Initial system message with the prompt
+        ("system", f"{SystemMessage(content=template)}"),  # Initial system message with the template
     ]
 
     # Adding the previous conversation to the history
     for user_msg, bot_msg in history:
-        messages.append(HumanMessage(content=user_msg))
-        messages.append(AIMessage(content=bot_msg))
+        messages.append(("human", f"{HumanMessage(content=user_msg)}"))
+        messages.append(("AI", f"{AIMessage(content=bot_msg)}"))
 
-    messages.append(HumanMessage(content=user_input))
+    # messages.append(("human", f"{HumanMessage(content=input_text)}"))
     generation_params = {
         "temperature": temperature,
         "top_p": top_p,
         "max_tokens": max_new_tokens
     }
-
-    response = generate_response(user_input, prompt, model_name, generation_params)
+    print(messages)
+    response = generate_response(template, user_input, model_name, generation_params)
     if create_paragraphs_enabled:
         response = create_paragraphs(response)
 
@@ -60,7 +60,7 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         message = gr.Textbox(placeholder="your message...", label="user", elem_id="message", scale=3)
-        prompt = gr.Textbox(placeholder="your prompt...", label="prompt", elem_id="message", scale=3)
+        template = gr.Textbox(placeholder="your template...", label="template", elem_id="message", scale=3)
         submit = gr.Button("send", scale=1)
 
     with gr.Row():
@@ -74,9 +74,9 @@ with gr.Blocks() as demo:
                 temperature = gr.Slider(minimum=0.1, maximum=1.0, value=0.7, step=0.1, label="temperature")
             with gr.Column():
                 top_p = gr.Slider(minimum=0.1, maximum=1.0, value=0.9, step=0.1, label="Top P")
-                top_k = gr.Slider(minimum=1, maximum=100, value=50, step=1, label="Top K")
+                # top_k = gr.Slider(minimum=1, maximum=100, value=50, step=1, label="Top K")
 
-    submit.click(chat, inputs=[message, prompt, chatbot, model_dropdown, max_new_tokens, temperature, top_p, create_paragraphs_checkbox], outputs=[chatbot, chatbot])
+    submit.click(chat, inputs=[message, template, chatbot, model_dropdown, max_new_tokens, temperature, top_p, create_paragraphs_checkbox], outputs=[chatbot, chatbot])
 
     demo.css = """
         #message, #message * {

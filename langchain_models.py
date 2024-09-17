@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 from langchain_huggingface import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import os
 from dotenv import load_dotenv
@@ -41,7 +42,7 @@ def instantiate_hf_model(model_name):
     return model, tokenizer
 
 
-def generate_response(user_input, user_prompt, model_name, generation_params: dict):
+def generate_response(template, user_input, model_name, generation_params: dict):
     global model, tokenizer, current_model_name
 
     match model_name:
@@ -69,18 +70,18 @@ def generate_response(user_input, user_prompt, model_name, generation_params: di
             llm = HuggingFacePipeline(pipeline=pipe)
             gc.collect()
 
-            prompt = PromptTemplate(input_variables=["input"], template=user_prompt)
-            chain = prompt | llm
-            respawns = chain.invoke({"input": user_input})
+            prompt_template = ChatPromptTemplate.from_template(template)
+            prompt = prompt_template.invoke({"input": user_input})
+            respawns = llm.invoke(prompt)
 
 
         case 'ChatGroq':
             llm = ChatGroq(model="llama3-8b-8192", **generation_params)
             current_model_name = model_name
 
-            prompt = PromptTemplate(input_variables=["input"], template=user_prompt)
-            chain = prompt | llm
-            respawns = chain.invoke({"input": user_input}).content
+            prompt_template = ChatPromptTemplate.from_template(template)
+            prompt = prompt_template.invoke({"input": user_input})
+            respawns = llm.invoke(prompt).content
 
         case _:
             raise ValueError(f"Unsupported model: {model_name}")
