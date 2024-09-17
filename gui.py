@@ -7,76 +7,80 @@ Original file is located at
     https://colab.research.google.com/drive/1KBiwVplTGRM2IMx4NgmfAc8tGdIOR23l
 """
 
-# !pip install gradio transformers torch nltk
-import gradio as gr
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
-import nltk
-from nltk.tokenize import sent_tokenize
-import gc
+# # !pip install gradio transformers torch nltk
+# import gradio as gr
+# from transformers import AutoTokenizer, AutoModelForCausalLM
+# import torch
+# import nltk
+# from nltk.tokenize import sent_tokenize
+# import gc
 
-nltk.download('punkt', quiet=True)
-
-
-
-device = ("cuda" if torch.cuda.is_available()
-          else "mps" if torch.backends.mps.is_available()
-          else "cpu")
-print(f"device: {device}")
-
-cache_dir = "_cache"
-
-
-# "name to show": "name to load"
+from langchain_models import *
+#
+# nltk.download('punkt', quiet=True)
+#
+#
+#
+# device = ("cuda" if torch.cuda.is_available()
+#           else "mps" if torch.backends.mps.is_available()
+#           else "cpu")
+# print(f"device: {device}")
+#
+# cache_dir = "_cache"
+#
+#
+# # "name to show": "name to load"
 models = {
     # "dicta-il/dictalm2.0-instruct": "dicta-il/dictalm2.0-instruct",
     # "distilgpt2": "distilgpt2",
-    "gpt2": "gpt2",
     "meta-llama/Llama-2-7b-hf": "meta-llama/Llama-2-7b-hf",
+    "gpt2": "gpt2",
     # "sshleifer/tiny-gpt2": "sshleifer/tiny-gpt2"
 }
-
-deafult_model_name = "meta-llama/Llama-2-7b-hf"
-
-loaded_models = {deafult_model_name:
-                             {"model": AutoModelForCausalLM.from_pretrained(models[deafult_model_name], torch_dtype=torch.bfloat16,
-                                                                            cache_dir=cache_dir).to(device),
-                              "tokenizer": AutoTokenizer.from_pretrained(models[deafult_model_name], padding=True,
-                                                                         cache_dir=cache_dir)}}
-
-
-def generate_response(input_text, model_name, max_new_tokens=50, temperature=0.7, top_p=0.9, top_k=50):
-    global loaded_models
-    try:
-        loaded_models[model_name]
-    except:
-        loaded_models = {model_name:
-                             {"model": AutoModelForCausalLM.from_pretrained(models[model_name], torch_dtype=torch.bfloat16, cache_dir=cache_dir).to(device),
-                              "tokenizer": AutoTokenizer.from_pretrained(models[model_name], padding=True, cache_dir=cache_dir)}}
-
-    model_data = loaded_models[model_name]
-    model = model_data["model"]
-    print(model)
-    tokenizer = model_data["tokenizer"]
-
-    gc.collect()
+#
+# deafult_model_name = "meta-llama/Llama-2-7b-hf"
+#
+# loaded_models = {deafult_model_name:
+#                              {"model": AutoModelForCausalLM.from_pretrained(models[deafult_model_name], torch_dtype=torch.bfloat16,
+#                                                                             cache_dir=cache_dir).to(device),
+#                               "tokenizer": AutoTokenizer.from_pretrained(models[deafult_model_name], padding=True,
+#                                                                          cache_dir=cache_dir)}}
 
 
-    inputs = tokenizer.encode(input_text, return_tensors="pt").to(device)
+# def generate_response(input_text, model_name, max_new_tokens=50, temperature=0.7, top_p=0.9, top_k=50):
+#     global loaded_models
+#     try:
+#         loaded_models[model_name]
+#     except:
+#         loaded_models = {model_name:
+#                              {"model": AutoModelForCausalLM.from_pretrained(models[model_name], torch_dtype=torch.bfloat16, cache_dir=cache_dir).to(device),
+#                               "tokenizer": AutoTokenizer.from_pretrained(models[model_name], padding=True, cache_dir=cache_dir)}}
+#
+#     model_data = loaded_models[model_name]
+#     model = model_data["model"]
+#     # print(model)
+#     tokenizer = model_data["tokenizer"]
+#
+#     gc.collect()
+#
+#
+#     inputs = tokenizer.encode(input_text, return_tensors="pt").to(device)
+#
+#     with torch.no_grad():
+#         outputs = model.generate(
+#             inputs,
+#             max_new_tokens=max_new_tokens,
+#             do_sample=True,
+#             temperature=temperature,
+#             top_p=top_p,
+#             top_k=top_k,
+#             pad_token_id=tokenizer.eos_token_id
+#         )
+#
+#     response = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+#     return response[len(input_text):].strip()
 
-    with torch.no_grad():
-        outputs = model.generate(
-            inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            pad_token_id=tokenizer.eos_token_id
-        )
-
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
-    return response[len(input_text):].strip()
+model = instantiate_model(model_name)
 
 def create_paragraphs(bot_response, sentences_per_paragraph=2):
     sentences = sent_tokenize(bot_response)
@@ -97,8 +101,8 @@ def create_paragraphs(bot_response, sentences_per_paragraph=2):
 
 def chat(input_text, prompt, history, model_name, max_new_tokens, temperature, top_p, top_k, create_paragraphs_enabled):
     user_input = f'<div style="text-align: right; direction: rtl;">{input_text}</div>'
-    response = generate_response(prompt + input_text, model_name, max_new_tokens=max_new_tokens, temperature=temperature, top_p=top_p, top_k=top_k)
-
+    # response = generate_response(prompt + input_text, model_name, max_new_tokens=max_new_tokens, temperature=temperature, top_p=top_p, top_k=top_k)
+    response = generate_response(input_text, prompt, model)
     if create_paragraphs_enabled:
         response = create_paragraphs(response)
 
